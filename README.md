@@ -35,6 +35,12 @@ Pick an owned item, then tap one of six room spots. Move items or put them away 
 
 The wallet, owned items, room layout, colours and shop name save in this browser using local storage. One browser profile has one shared shop; different devices or browser profiles have separate shops. Use the same Safari session or Home Screen shortcut each time. Clearing site data or using private browsing can remove progress. Data does not sync across devices or different hosting addresses. No student account or real name is required. If browser saving fails, the shop remains usable for the current visit and the interface reports that it is not saved.
 
+## Teacher settings login
+
+Teacher settings asks for a username and password on every visit. Correct credentials open the existing settings panel; incorrect credentials show a retry message. Password characters are masked, and the field is cleared on rejection or close. Access is not remembered between visits. The shared password is represented by a SHA-256 digest in the published code, rather than plain text.
+
+This is a basic browser-side classroom lock. It is not server-side authentication and does not protect server data or the publicly available teacher-guide page. A visitor who controls their browser can bypass client-side checks. Modern HTTPS browsers with Web Crypto are required; login fails closed if hashing is unavailable.
+
 ## Student iPads
 
 The owner has approved anyone-with-the-link access to the published game. The QR code points to the canonical Sites game URL:
