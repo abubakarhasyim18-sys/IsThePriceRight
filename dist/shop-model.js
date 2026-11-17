@@ -21,15 +21,18 @@ const SHOP_ITEMS = [
   {id:'floor-rose',name:'Rose floor',price:3,kind:'floor',category:'Colours',value:'rose',colour:'#dbc0be'}
 ];
 const SHOP_KEY='retail-star-shop-v1';
-const SHOP_SPOTS=['Back left','Back middle','Back right','Front left','Front middle','Front right'];
 const SHOP_ITEM_MAP=Object.assign(Object.create(null),Object.fromEntries(SHOP_ITEMS.map(item=>[item.id,item])));
-function newShop(){return {version:1,balance:0,name:'My Star Shop',owned:['basic-rack','basic-till'],placements:['basic-rack',null,null,null,null,'basic-till'],wall:'cream',floor:'oak',awards:[]}}
+function newShop(){return {version:2,balance:0,name:'My Star Shop',owned:['basic-rack','basic-till'],positions:{'basic-rack':{x:8,y:48},'basic-till':{x:88,y:90}},wall:'cream',floor:'oak',awards:[]}}
 function cleanShop(value){
   const result=newShop();if(!value||typeof value!=='object')return result;
   if(Number.isSafeInteger(value.balance)&&value.balance>=0&&value.balance<=10000000)result.balance=value.balance;
   if(typeof value.name==='string'&&value.name.trim())result.name=value.name.trim().slice(0,24);
   if(Array.isArray(value.owned))result.owned=[...new Set(['basic-rack','basic-till',...value.owned.filter(id=>SHOP_ITEM_MAP[id])])];
-  if(Array.isArray(value.placements)){const seen=new Set();result.placements=SHOP_SPOTS.map((_,i)=>{const id=value.placements[i];if(!result.owned.includes(id)||SHOP_ITEM_MAP[id]?.kind!=='item'||seen.has(id))return null;seen.add(id);return id})}
+  if(value.positions&&typeof value.positions==='object'&&!Array.isArray(value.positions)){
+    result.positions={};for(const id of result.owned){const point=value.positions[id];if(SHOP_ITEM_MAP[id]?.kind==='item'&&point&&Number.isFinite(point.x)&&Number.isFinite(point.y)&&point.x>=0&&point.x<=100&&point.y>=0&&point.y<=100)result.positions[id]={x:point.x,y:point.y}}
+  }else if(Array.isArray(value.placements)){
+    result.positions={};const oldSpots=[{x:4,y:48},{x:50,y:48},{x:96,y:48},{x:4,y:92},{x:50,y:92},{x:96,y:92}];value.placements.slice(0,6).forEach((id,i)=>{if(result.owned.includes(id)&&SHOP_ITEM_MAP[id]?.kind==='item'&&!Object.hasOwn(result.positions,id))result.positions[id]={...oldSpots[i]}})
+  }
   for(const kind of ['wall','floor']){const theme=SHOP_ITEMS.find(item=>item.kind===kind&&item.value===value[kind]);if(theme&&result.owned.includes(theme.id))result[kind]=theme.value}
   if(Array.isArray(value.awards))result.awards=[...new Set(value.awards.filter(id=>typeof id==='string'&&id.length<=120))].slice(-2000);
   return result;
@@ -42,8 +45,8 @@ function createStarShop(storage){
   function snapshot(){refresh();return JSON.parse(JSON.stringify(data))}
   function credit(id,amount){refresh();if(typeof id!=='string'||!id||id.length>120||!Number.isSafeInteger(amount)||amount<=0||amount>39||data.awards.includes(id))return false;data.balance=Math.min(10000000,data.balance+amount);data.awards.push(id);data.awards=data.awards.slice(-2000);save();return true}
   function buy(id){refresh();const item=SHOP_ITEM_MAP[id];if(!item)return {ok:false,reason:'missing'};if(data.owned.includes(id))return {ok:false,reason:'owned'};if(data.balance<item.price)return {ok:false,reason:'stars',need:item.price-data.balance};const before=data.balance;data.balance-=item.price;data.owned.push(id);if(item.kind==='wall'||item.kind==='floor')data[item.kind]=item.value;save();return {ok:true,before,cost:item.price,left:data.balance,item}}
-  function place(id,spot){refresh();if(!Number.isInteger(spot)||spot<0||spot>=SHOP_SPOTS.length||!data.owned.includes(id)||SHOP_ITEM_MAP[id]?.kind!=='item')return false;data.placements=data.placements.map(v=>v===id?null:v);data.placements[spot]=id;save();return true}
-  function remove(spot){refresh();if(!Number.isInteger(spot)||spot<0||spot>=SHOP_SPOTS.length)return false;data.placements[spot]=null;save();return true}
+  function place(id,x,y){refresh();if(!data.owned.includes(id)||SHOP_ITEM_MAP[id]?.kind!=='item'||!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>100||y<0||y>100)return false;data.positions[id]={x:Math.round(x*100)/100,y:Math.round(y*100)/100};save();return true}
+  function remove(id){refresh();if(!Object.hasOwn(data.positions,id))return false;delete data.positions[id];save();return true}
   function theme(kind,value){refresh();if(!['wall','floor'].includes(kind))return false;const basic=kind==='wall'?'cream':'oak';if(value!==basic&&!SHOP_ITEMS.some(item=>item.kind===kind&&item.value===value&&data.owned.includes(item.id)))return false;data[kind]=value;save();return true}
   function rename(name){refresh();if(typeof name!=='string'||!name.trim())return false;data.name=name.trim().slice(0,24);save();return true}
   return {snapshot,credit,buy,place,remove,theme,rename,get persistent(){return persistent}};
